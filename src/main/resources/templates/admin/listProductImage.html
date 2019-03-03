@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:include="include/admin/adminHeader::html('产品管理')" ></head>
+<body>
+<div th:replace="include/admin/adminNavigator::html" ></div>
+
+<script>
+    $(function () {
+        var pid = getUrlParms("pid");
+        var date4Vue = {
+            product:'',
+            category:'',
+            uri:'productImages',
+            singleProductImages:[],
+            detailProductImages:[],
+            singleFile:'',
+            detailFile:''
+        };
+
+        var vue = new Vue({
+            el:"#workingArea",
+            data:date4Vue,
+            mounted(){
+                this.getProduct(pid);
+                this.listSingles();
+                this.listDetails();
+            },
+            methods:{
+                getProduct(pid){
+                    var url = 'products/'+pid;
+                    axios.get(url).then(res=>{
+                       this.product = res.data;
+                       this.category = this.product.category;
+                    })
+                },
+                listSingles(start){
+                    var url = "products/"+pid+"/"+this.uri+"?type=single";
+                    axios.get(url).then(res=>{
+                        // console.log(res);
+                        this.singleProductImages= res.data.list
+                    })
+                },
+                listDetails(start){
+                    var url = "products/"+pid+"/"+this.uri+"?type=detail";
+                    axios.get(url).then(res=>{
+                        // console.log(res);
+                        this.detailProductImages = res.data.list
+                    })
+                },
+                addSingle(){
+                    if(!checkEmpty(this.singleFile, "单个产品图片"))
+                        return;
+                    var url = this.uri+"?type=single&pid="+pid;
+
+                    //axios.js 上传文件要用 formData 这种方式
+                    var formData = new FormData();
+                    formData.append("image", this.singleFile);
+                    axios.post(url,formData).then(res=>{
+                        // console.log(res);
+                        vue.listSingles();                      //上传成功后，调用list查询第一页的数据，然后还原数据
+                        $("#singlePic").val('');                //上传图片的input返回到初始状态
+                        vue.singleFile = null;                  // file返回到初始状态
+                    })
+                },
+                addDetail(){
+                    if(!checkEmpty(this.detailFile, "详情产品图片"))
+                        return;
+                    var url = this.uri+"?type=detail&pid="+pid;
+
+                    //axios.js 上传文件要用 formData 这种方式
+                    var formData = new FormData();
+                    formData.append("image", this.detailFile);
+                    axios.post(url,formData).then(res=>{
+                        // console.log(res);
+                        vue.listDetails();                      //上传成功后，调用list查询第一页的数据，然后还原数据
+                        $("#detailPic").val('');                //上传图片的input返回到初始状态
+                        vue.detailFile = null;                  // file返回到初始状态
+                    })
+                },
+                getSingleFile(event){
+                    this.singleFile = event.target.files[0];    //当上传控件选中某个本地文件的时候，这个文件对象就会保存在data4Vue.singleFile上
+                },
+                getDetailFile(event){
+                    this.detailFile = event.target.files[0];    //当上传控件选中某个本地文件的时候，这个文件对象就会保存在data4Vue.detailFile上
+                },
+                deleteBean(id){
+                    if(!checkDeleteLink())
+                        return;
+                    var url = this.uri+"/"+id;
+                    axios.delete(url).then(res=>{
+                        if(0!=res.data.length){
+                            alert(res.data);
+                        }
+                        else{
+                            vue.listSingles();
+                            vue.listDetails();
+                        }
+                    })
+                }
+            }
+        })
+    })
+</script>
+
+
+<div id="workingArea" >
+    <ol class="breadcrumb">
+        <li><a href="admin_category_list">所有分类</a></li>
+        <li><a :href="'admin_product_list?cid='+category.id">{{category.name}}</a></li>
+        <li class="active">{{product.name}}</li>
+        <li class="active">产品图片管理</li>
+    </ol>
+
+    <table class="addPictureTable" align="center">
+        <tr>
+            <td class="addPictureTableTD">
+                <div>
+                    <div class="panel panel-warning addPictureDiv">
+                        <div class="panel-heading">新增产品<b class="text-primary"> 单个 </b>图片</div>
+                        <div class="panel-body">
+                            <table class="addTable">
+                                <tr>
+                                    <td>请选择本地图片 尺寸400X400 为佳</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input id="singlePic" type="file" @change="getSingleFile($event)" name="image" />
+                                    </td>
+                                </tr>
+                                <tr class="submitTR">
+                                    <td align="center">
+                                        <button type="submit" @click="addSingle" class="btn btn-success">提 交</button>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <table class="table table-striped table-bordered table-hover  table-condensed">
+                        <thead>
+                        <tr class="success">
+                            <th>ID</th>
+                            <th>产品单个图片缩略图</th>
+                            <th>删除</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="pi in singleProductImages">
+                            <td>{{pi.id}}</td>
+                            <td>
+                                <a title="点击查看原图" :href="'img/productSingle/'+pi.id+'.jpg'"><img height="50px" :src="'img/productSingle/'+pi.id+'.jpg'"></a>
+                            </td>
+                            <td><a href="#nowhere" @click="deleteBean(pi.id)"><span class="glyphicon glyphicon-trash"></span></a></td>
+
+                        </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+            </td>
+            <td class="addPictureTableTD">
+                <div>
+
+                    <div class="panel panel-warning addPictureDiv">
+                        <div class="panel-heading">新增产品<b class="text-primary"> 详情 </b>图片</div>
+                        <div class="panel-body">
+                            <table class="addTable">
+                                <tr>
+                                    <td>请选择本地图片 宽度790  为佳</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input id="detailPic" type="file" @change="getDetailFile($event)" name="image" />
+                                    </td>
+                                </tr>
+                                <tr class="submitTR">
+                                    <td align="center">
+                                        <button type="submit" @click="addDetail" class="btn btn-success">提 交</button>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </div>
+                    </div>
+                    <table class="table table-striped table-bordered table-hover  table-condensed">
+                        <thead>
+                        <tr class="success">
+                            <th>ID</th>
+                            <th>产品详情图片缩略图</th>
+                            <th>删除</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="pi in detailProductImages">
+                            <td>{{pi.id}}</td>
+                            <td>
+                                <a title="点击查看原图" :href="'img/productDetail/'+pi.id+'.jpg'"><img height="50px" :src="'img/productDetail/'+pi.id+'.jpg'"></a>
+                            </td>
+                            <td><a href="#nowhere" @click="deleteBean(pi.id)"><span class="glyphicon glyphicon-trash"></span></a></td>
+
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+
+<div th:replace="include/admin/adminFooter::html" ></div>
+</body>
+</html>

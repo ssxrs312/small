@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:include="include/admin/adminHeader::html('编辑产品属性')" ></head>
+<body>
+<div th:replace="include/admin/adminNavigator::html" ></div>
+
+<script>
+    $(function () {
+        var pid = getUrlParms("pid");
+        var date4Vue = {
+            product:'',
+            category:'',
+            uri:'propertyValues',
+            beans:[]
+        };
+
+        var vue = new Vue({
+            el:"#workingArea",
+            data:date4Vue,
+            mounted(){
+                this.getProduct(pid);
+                this.list();
+            },
+            methods:{
+                getProduct(pid){
+                    var url = 'products/'+pid;
+                    axios.get(url).then(res=>{
+                        this.product = res.data;
+                        this.category = this.product.category;
+                    })
+                },
+                list(){
+                    var url = "products/"+pid+"/"+ this.uri;
+                    axios.get(url).then(res=>{
+                        // console.log(res);
+                        vue.beans = res.data;
+                    });
+                },
+                update(bean){
+                    var url =  this.uri;
+                    var id = bean.id;
+                    $("#pvid"+bean.id).css("border","2px solid yellow");          //正在修改时，黄色
+                    axios.put(url,bean).then(res=> {
+                        // console.log(res);
+                        if(bean.id==res.data.id)
+                            $("#pvid"+bean.id).css("border","2px solid green");   //修改成功，绿色
+                        else
+                            $("#pvid"+bean.id).css("border","2px solid red");    //不成功，红色
+                    });
+                }
+            }
+        })
+    })
+</script>
+
+
+<div id="workingArea" >
+    <ol class="breadcrumb">
+        <li><a href="admin_category_list">所有分类</a></li>
+        <li><a :href="'admin_product_list?cid='+category.id">{{category.name}}</a></li>
+        <li class="active">{{product.name}}</li>
+        <li class="active">编辑产品属性</li>
+    </ol>
+
+    <div class="editPVDiv">
+        <div v-for="bean in beans" class="eachPV">
+            <span class="pvName" >{{bean.property.name}}</span>
+            <span class="pvValue"><input class="pvValue" :id="'pvid'+bean.id" type="text" v-model="bean.value" @keyup="update(bean)"></span>
+        </div>
+        <div style="clear:both"></div>
+    </div>
+
+</div>
+
+
+<div th:replace="include/admin/adminFooter::html" ></div>
+</body>
+</html>
