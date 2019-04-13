@@ -1,15 +1,28 @@
 package study.small.service.impl;
 
+import org.elasticsearch.common.lucene.search.function.FunctionScoreQuery;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.elasticsearch.core.query.SearchQuery;
 import org.springframework.stereotype.Service;
 import study.small.entity.Category;
 import study.small.entity.OrderItem;
 import study.small.entity.Product;
+import study.small.es.ProductESDAO;
 import study.small.mapper.ProductMapper;
 import study.small.service.*;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.elasticsearch.index.query.QueryBuilders.matchPhraseQuery;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -24,20 +37,26 @@ public class ProductServiceImpl implements ProductService {
     OrderItemService orderItemService;
     @Autowired
     CategoryService categoryService;
+    @Autowired
+    ProductESDAO productESDAO;
 
     @Override
     public void add(Product product) {
         productMapper.add(product);
+        productESDAO.save(product);
+
     }
 
     @Override
     public void delete(int id) {
         productMapper.delete(id);
+        productESDAO.deleteById(id);
     }
 
     @Override
     public void update(Product product) {
         productMapper.update(product);
+        productESDAO.save(product);
     }
 
     @Override
@@ -128,6 +147,48 @@ public class ProductServiceImpl implements ProductService {
         setSaleAndReviewNumber(ps);
         return ps;
     }
+
+    @Override
+    public List<Product> search(String keyword, int start, int size) {
+        initDatabase2ES();
+//        FunctionScoreQueryBuilder functionScoreQueryBuilder = QueryBuilders.functionScoreQuery()
+//                .add(QueryBuilders.matchPhraseQuery("name", keyword),
+//                        ScoreFunctionBuilders.weightFactorFunction(100))
+//                .scoreMode("sum")
+//                .setMinScore(10);
+
+        FunctionScoreQueryBuilder functionScoreQueryBuilder = QueryBuilders.functionScoreQuery(
+                QueryBuilders.matchPhraseQuery("name", keyword),
+                ScoreFunctionBuilders.weightFactorFunction(100))
+                .scoreMode(FunctionScoreQuery.ScoreMode.SUM)
+                .setMinScore(10);
+
+
+        Sort sort  = new Sort(Sort.Direction.DESC,"id");
+//        Pageable pageable = new PageRequest(start, size,sort);
+        Pageable pageable = PageRequest.of(start,size,sort);
+        SearchQuery searchQuery = new NativeSearchQueryBuilder()
+                .withPageable(pageable)
+                .withQuery(functionScoreQueryBuilder).build();
+
+        Page<Product> page = productESDAO.search(searchQuery);
+        return page.getContent();
+
+    }
+
+    //初始化数据到es
+    private void initDatabase2ES(){
+//        Pageable pageable = new PageRequest(0, 5);
+        Pageable pageable = PageRequest.of(0,5);//new PageRequest(0, 5)被弃用了
+        Page<Product> page =productESDAO.findAll(pageable);
+        if(page.getContent().isEmpty()) {
+            List<Product> products = productMapper.queryAll();
+            for (Product product : products) {
+                productESDAO.save(product);
+            }
+        }
+    }
+
 
 
 }

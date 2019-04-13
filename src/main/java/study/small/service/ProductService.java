@@ -37,5 +37,8 @@ public interface ProductService {
 
     public List<Product> queryByKeyword(String keyword);
 
+    //利用es查询
+    public List<Product> search(String keyword, int start, int size);
+
 
 }

@@ -141,7 +141,11 @@ public class ForeController {
     public Object search(String keyword) throws Exception{
 //        if(null==keyword)
 //            keyword = "";
-        List<Product> ps = productService.queryByKeyword(keyword);
+//        List<Product> ps = productService.queryByKeyword(keyword);
+        List<Product> ps = productService.search(keyword, 0, 20);
+        productImageService.setFirstProductImage(ps);
+        productService.setCategory(ps);
+        productService.setSaleAndReviewNumber(ps);
         return ps;
     }
 

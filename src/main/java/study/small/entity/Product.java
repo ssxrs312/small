@@ -1,8 +1,11 @@
 package study.small.entity;
 
+import org.springframework.data.elasticsearch.annotations.Document;
+
 import java.util.Date;
 import java.util.List;
 
+@Document(indexName = "small",type = "product")
 public class Product {
     private int id;
     private String name;
